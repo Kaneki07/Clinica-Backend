@@ -1,0 +1,188 @@
+@baseUrl = http://localhost:4000/api
+@email = admin@clinica.hidalgo
+@password = Admin1234!
+@contentType = application/json
+
+### Health
+GET {{baseUrl}}/health
+
+### Login (guarda la cookie de sesión)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### Usuario autenticado
+GET {{baseUrl}}/auth/me
+
+### Listar cuentas (admin)
+GET {{baseUrl}}/users
+
+### Crear cuenta de doctor
+POST {{baseUrl}}/users
+Content-Type: {{contentType}}
+
+{
+  "ci": "87654321",
+  "name": "Francisco",
+  "lastName": "Hidalgo",
+  "email": "fhidalgo@clinica.hidalgo",
+  "role": "doctor",
+  "specialty": "Cardiología",
+  "phone": "0414-7654321",
+  "password": "Doctor1234!"
+}
+
+### Crear cuenta de recepción
+POST {{baseUrl}}/users
+Content-Type: {{contentType}}
+
+{
+  "ci": "16554433",
+  "name": "Carmen",
+  "lastName": "Díaz",
+  "email": "recepcion@clinica.hidalgo",
+  "role": "recepcion",
+  "area": "Recepción",
+  "phone": "0412-9988776",
+  "password": "Recepcion1234!"
+}
+
+### Listar doctores activos
+GET {{baseUrl}}/doctors
+
+### Listar disponibilidad de doctores
+GET {{baseUrl}}/doctors/status
+
+### Cambiar disponibilidad (doctor/admin/recepción)
+PATCH {{baseUrl}}/doctors/{{doctorId}}/status
+Content-Type: {{contentType}}
+
+{
+  "status": "en_consulta"
+}
+
+### Listar pacientes
+GET {{baseUrl}}/patients
+
+### Registrar paciente
+# @name patient
+POST {{baseUrl}}/patients
+Content-Type: {{contentType}}
+
+{
+  "ci": "14523678",
+  "name": "Carlos",
+  "lastName": "Mendoza",
+  "birthDate": "1984-03-12",
+  "area": "Medicina General",
+  "phone": "0414-1112233",
+  "isMinor": false
+}
+
+### Registrar menor de edad sin cédula
+POST {{baseUrl}}/patients
+Content-Type: {{contentType}}
+
+{
+  "name": "Sofía",
+  "lastName": "Martínez",
+  "birthDate": "2018-05-30",
+  "area": "Pediatría",
+  "isMinor": true,
+  "guardianName": "Elena Martínez",
+  "guardianCi": "15667788"
+}
+
+### Listar citas
+GET {{baseUrl}}/appointments
+
+### Filtrar citas por fecha
+GET {{baseUrl}}/appointments?date=2026-11-15
+
+### Registrar cita (admin)
+# @name appointment
+POST {{baseUrl}}/appointments
+Content-Type: {{contentType}}
+
+{
+  "patientId": "{{patient.response.body.id}}",
+  "doctorId": "{{doctorId}}",
+  "date": "2026-11-15",
+  "time": "09:30",
+  "note": "Control de presión arterial.",
+  "specialty": "Cardiología"
+}
+
+### Confirmar llegada (recepción)
+PATCH {{baseUrl}}/appointments/{{appointment.response.body.id}}
+Content-Type: {{contentType}}
+
+{
+  "status": "confirmada"
+}
+
+### Pasar a sala (recepción o doctor)
+PATCH {{baseUrl}}/appointments/{{appointment.response.body.id}}
+Content-Type: {{contentType}}
+
+{
+  "status": "en_sala"
+}
+
+### Marcar atendida (doctor/recepción/admin)
+PATCH {{baseUrl}}/appointments/{{appointment.response.body.id}}
+Content-Type: {{contentType}}
+
+{
+  "status": "atendida"
+}
+
+### Cambiar orden de la cola
+PATCH {{baseUrl}}/appointments/{{appointment.response.body.id}}/order
+Content-Type: {{contentType}}
+
+{
+  "direction": "up"
+}
+
+### Eliminar cita (admin)
+DELETE {{baseUrl}}/appointments/{{appointment.response.body.id}}
+
+### Listar notificaciones
+GET {{baseUrl}}/notifications
+
+### Crear notificación (doctor)
+POST {{baseUrl}}/notifications
+Content-Type: {{contentType}}
+
+{
+  "doctorId": "{{doctorId}}",
+  "appointmentId": "{{appointment.response.body.id}}",
+  "message": "Paciente listo para confirmación en recepción.",
+  "type": "asistencia"
+}
+
+### Marcar una notificación como leída
+PATCH {{baseUrl}}/notifications/{{notificationId}}
+Content-Type: {{contentType}}
+
+{
+  "read": true
+}
+
+### Marcar todas las notificaciones como leídas
+PATCH {{baseUrl}}/notifications/read-all
+Content-Type: {{contentType}}
+
+{}
+
+### Logout (limpiar cookie)
+POST {{baseUrl}}/auth/logout
+Content-Type: {{contentType}}
+
+{}

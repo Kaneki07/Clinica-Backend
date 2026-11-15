@@ -1,0 +1,107 @@
+// Prisma schema para la Clínica Dr. Francisco Hidalgo.
+// SQLite se usa por defecto para desarrollo local sin servidor de base de datos.
+// Los "enums" se guardan como String para mantener compatibilidad con SQLite;
+// los valores permitidos se validan en la capa HTTP.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  ci           String   @unique
+  name         String
+  lastName     String
+  email        String   @unique
+  passwordHash String
+  role         String // admin | doctor | recepcion
+  specialty    String?
+  area         String?
+  phone        String?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  createdAppointments Appointment[]  @relation("AppointmentCreatedBy")
+  doctorAppointments  Appointment[]  @relation("AppointmentDoctor")
+  notifications       Notification[]
+  doctorStatus        DoctorStatus?
+
+  @@index([role, active])
+  @@map("users")
+}
+
+model Patient {
+  id           String    @id @default(uuid())
+  ci           String?   @unique
+  name         String
+  lastName     String
+  birthDate    DateTime?
+  area         String
+  phone        String?
+  isMinor      Boolean   @default(false)
+  guardianName String?
+  guardianCi   String?
+  createdAt    DateTime  @default(now())
+
+  appointments Appointment[]
+
+  @@index([lastName, name])
+  @@map("patients")
+}
+
+model Appointment {
+  id        String   @id @default(uuid())
+  patientId String
+  doctorId  String
+  specialty String
+  date      DateTime
+  time      String // HH:mm
+  note      String?
+  status    String   @default("pendiente")
+  order     Int      @default(0)
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  patient       Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor        User           @relation("AppointmentDoctor", fields: [doctorId], references: [id], onDelete: Restrict)
+  createdByUser User           @relation("AppointmentCreatedBy", fields: [createdBy], references: [id], onDelete: Restrict)
+  notifications Notification[]
+
+  @@index([date, time])
+  @@index([doctorId, date, order])
+  @@index([patientId])
+  @@map("appointments")
+}
+
+model Notification {
+  id            String   @id @default(uuid())
+  appointmentId String?
+  doctorId      String
+  message       String
+  type          String   @default("general")
+  read          Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  doctor      User         @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId, read])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model DoctorStatus {
+  doctorId  String   @id
+  status    String   @default("disponible")
+  updatedAt DateTime @updatedAt
+
+  doctor User @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@map("doctor_statuses")
+}
