@@ -244,7 +244,7 @@ cambios en `prisma/schema.prisma` y ejecuta el seed.
 1. Crea una base **PostgreSQL** en Render (o un Prisma Postgres) y copia su
    `Internal Database URL` si el backend también está en Render.
 2. Crea un **Web Service** apuntando a este repositorio con:
-   - **Build Command**: `npm ci --include=dev && npm run build`
+   - **Build Command**: `npm ci && npm run build`
    - **Start Command**: `npm run start:prod`
    - **Health Check Path**: `/api/health`
 3. Configura las variables de entorno en el panel de Render (ver tabla abajo).
@@ -254,6 +254,10 @@ cambios en `prisma/schema.prisma` y ejecuta el seed.
    ```
    `start:prod` aplica migraciones en cada arranque; el seed no se ejecuta solo
    para no sobrescribir la contraseña del administrador en cada despliegue.
+
+> Las herramientas de build y seed (`typescript`, `@types/node`, `tsx`) están
+> en `dependencies` para que Render las instale aunque `NODE_ENV=production`
+> omita las `devDependencies`.
 
 ### Variables de entorno en Render
 
