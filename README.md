@@ -9,7 +9,7 @@ entre doctores y recepción.
 - **Node.js 20+** y **TypeScript**.
 - **Fastify 5** como servidor HTTP.
 - **Prisma 6.19.3** (versión fijada para evitar conflictos de desarrollo).
-- **SQLite** por defecto, sin necesidad de instalar un servidor de base de datos.
+- **PostgreSQL** (Prisma Postgres o cualquier instancia compatible).
 - **JWT** en cookie `httpOnly` con `@fastify/jwt`.
 - **bcryptjs** para el hash de contraseñas.
 - **CORS** con credenciales para el frontend en `http://localhost:4321`.
@@ -25,8 +25,9 @@ npm run db:seed
 npm run dev
 ```
 
-La API queda disponible en `http://localhost:4000/api` y el health check en
-`http://localhost:4000/api/health`.
+Antes de ejecutar `npm run db:migrate`, configura `DATABASE_URL` con una base
+PostgreSQL accesible. La API queda disponible en `http://localhost:4000/api` y
+el health check en `http://localhost:4000/api/health`.
 
 > En PowerShell se usa `copy`; en bash/macOS/Linux, `cp .env.example .env`.
 >
@@ -53,9 +54,11 @@ Cambia la contraseña y el secreto JWT antes de desplegar en producción.
 | `npm run dev`         | Servidor en modo desarrollo con recarga (tsx).    |
 | `npm run build`       | Compila TypeScript a `dist/`.                     |
 | `npm start`           | Ejecuta el build compilado.                       |
+| `npm run start:prod`  | Aplica migraciones y arranca (Render/producción). |
 | `npm run check`       | Verificación de tipos sin emitir archivos.        |
 | `npm run db:migrate`  | Crea/aplica migraciones en desarrollo.            |
 | `npm run db:deploy`   | Aplica migraciones existentes (producción).       |
+| `npm run db:setup`    | Migra y ejecuta el seed en un solo paso.          |
 | `npm run db:push`     | Sincroniza el esquema sin crear migración.        |
 | `npm run db:seed`     | Crea/actualiza la cuenta administrativa inicial.  |
 | `npm run db:studio`   | Abre Prisma Studio.                               |
@@ -68,7 +71,7 @@ Clinica-Backend/
 ├── prisma/
 │   ├── schema.prisma       # Modelos User, Patient, Appointment...
 │   ├── seed.ts             # Cuenta administrativa inicial
-│   └── migrations/         # Migraciones SQLite versionadas
+│   └── migrations/         # Migraciones PostgreSQL versionadas
 ├── src/
 │   ├── app.ts              # Plugins, CORS, JWT, manejador de errores
 │   ├── index.ts            # Arranque y cierre ordenado
@@ -210,42 +213,78 @@ no puede ser `*`.
 
 ## Base de datos
 
-### SQLite (por defecto)
-
-El archivo se crea en `prisma/dev.db` (ignorado por Git):
+El proyecto usa **PostgreSQL** en desarrollo y producción. Configura
+`DATABASE_URL` en tu `.env`:
 
 ```env
-DATABASE_URL="file:./dev.db"
+DATABASE_URL="postgresql://usuario:clave@host:5432/clinica?schema=public"
 ```
 
-### Cambiar a PostgreSQL
+Si usas Prisma Postgres, copia la cadena que empieza por `postgres://` y que
+termina en `?sslmode=require`.
 
-1. Instala/levanta PostgreSQL y crea la base de datos.
-2. Cambia el provider en `prisma/schema.prisma`:
+### Migraciones y seed
 
-   ```prisma
-   datasource db {
-     provider = "postgresql"
-     url      = env("DATABASE_URL")
-   }
-   ```
+```bash
+# Aplicar las migraciones versionadas (producción)
+npm run db:deploy
 
-3. Configura `DATABASE_URL`:
+# Crear/actualizar la cuenta administrativa inicial
+npm run db:seed
 
-   ```env
-   DATABASE_URL="postgresql://usuario:clave@localhost:5432/clinica?schema=public"
-   ```
+# Ambos pasos juntos
+npm run db:setup
+```
 
-4. Elimina las migraciones SQLite y genera las nuevas:
+En desarrollo, `npm run db:migrate` crea nuevas migraciones a partir de los
+cambios en `prisma/schema.prisma` y ejecuta el seed.
 
+## Despliegue en Render
+
+1. Crea una base **PostgreSQL** en Render (o un Prisma Postgres) y copia su
+   `Internal Database URL` si el backend también está en Render.
+2. Crea un **Web Service** apuntando a este repositorio con:
+   - **Build Command**: `npm ci --include=dev && npm run build`
+   - **Start Command**: `npm run start:prod`
+   - **Health Check Path**: `/api/health`
+3. Configura las variables de entorno en el panel de Render (ver tabla abajo).
+4. Ejecuta el seed **una sola vez** desde la **Shell** de Render:
    ```bash
-   rm -r prisma/migrations
-   npx prisma migrate dev --name init_postgres
    npm run db:seed
    ```
+   `start:prod` aplica migraciones en cada arranque; el seed no se ejecuta solo
+   para no sobrescribir la contraseña del administrador en cada despliegue.
 
-Los campos de estado y rol son `String` con validación en la API, así que no
-necesitas cambiar los modelos al migrar de motor.
+### Variables de entorno en Render
+
+| Variable              | Valor                                                                 |
+| --------------------- | --------------------------------------------------------------------- |
+| `NODE_ENV`            | `production`                                                          |
+| `HOST`                | `0.0.0.0`                                                             |
+| `PORT`                | No la definas: Render la inyecta automáticamente                      |
+| `DATABASE_URL`        | Connection string de PostgreSQL                                       |
+| `JWT_SECRET`          | Cadena aleatoria larga (mínimo 32 caracteres)                         |
+| `JWT_EXPIRES_IN`      | `8h`                                                                  |
+| `COOKIE_NAME`         | `clinica_token`                                                       |
+| `COOKIE_SECURE`       | `true`                                                                |
+| `COOKIE_SAME_SITE`    | `none` si el frontend está en otro dominio                            |
+| `CORS_ORIGIN`         | Dominio exacto del frontend, p. ej. `https://clinica-web.onrender.com` |
+| `SEED_ADMIN_EMAIL`    | Correo del administrador inicial                                      |
+| `SEED_ADMIN_PASSWORD` | Contraseña del administrador inicial                                  |
+| `SEED_ADMIN_NAME`     | Nombre del administrador inicial                                      |
+| `SEED_ADMIN_LASTNAME` | Apellido del administrador inicial                                    |
+| `SEED_ADMIN_CI`       | Cédula del administrador inicial                                      |
+
+Si backend y frontend comparten dominio puedes usar `COOKIE_SAME_SITE="lax"`.
+Con dominios distintos (lo habitual en Render) usa `none` y
+`COOKIE_SECURE=true`, y en el frontend envía las peticiones con
+`credentials: 'include'`.
+
+> El archivo `render.yaml` incluye esta configuración como blueprint. Si lo
+> usas, Render pedirá al crear el servicio los valores marcados como secretos.
+
+Los campos de estado y rol son `String` con validación en la API; no requieren
+tipos nativos de PostgreSQL.
 
 ## Pruebas rápidas
 
@@ -284,8 +323,8 @@ IntelliJ.
 - `SameSite=Lax` protege contra CSRF en el escenario same-site. Si despliegas
   frontend y backend en sitios distintos con `SameSite=None`, agrega un token
   CSRF o cambia a autenticación por header `Authorization`.
-- No subas `.env` ni `prisma/dev.db` al repositorio.
-- Para producción: `npm run build`, `npm run db:deploy`, `npm start`.
+- No subas `.env` al repositorio.
+- Para producción: `npm run build` y `npm run start:prod` (migra y arranca).
 
 ### Nota sobre Prisma 6.19.3
 

@@ -30,7 +30,7 @@ export const env = {
   isProduction: nodeEnv === 'production',
   HOST: process.env.HOST ?? '0.0.0.0',
   PORT: Number(process.env.PORT ?? 4000),
-  DATABASE_URL: required('DATABASE_URL', 'file:./dev.db'),
+  DATABASE_URL: required('DATABASE_URL', ''),
   JWT_SECRET: jwtSecret,
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN ?? '8h',
   COOKIE_NAME: process.env.COOKIE_NAME ?? 'clinica_token',

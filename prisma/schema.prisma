@@ -1,14 +1,13 @@
 // Prisma schema para la Clínica Dr. Francisco Hidalgo.
-// SQLite se usa por defecto para desarrollo local sin servidor de base de datos.
-// Los "enums" se guardan como String para mantener compatibilidad con SQLite;
-// los valores permitidos se validan en la capa HTTP.
+// PostgreSQL es el motor soportado en desarrollo y producción (Render).
+// Los "enums" se guardan como String y se validan en la capa HTTP.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
