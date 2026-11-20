@@ -37,15 +37,20 @@ el health check en `http://localhost:4000/api/health`.
 
 ### Cuenta administrativa inicial
 
-Se crea/actualiza con `npm run db:seed` usando las variables `SEED_ADMIN_*` del
-archivo `.env`:
+Se crea con `npm run db:seed` usando las variables `SEED_ADMIN_*` del archivo
+`.env`:
 
 ```text
 Correo:     admin@clinica.hidalgo
 Contraseña: Admin1234!
 ```
 
-Cambia la contraseña y el secreto JWT antes de desplegar en producción.
+Si la cuenta ya existe, el seed no la modifica. Para forzar la actualización
+(por ejemplo, cambiar la contraseña) configura `SEED_ADMIN_FORCE_UPDATE=true`.
+
+En Render el seed se ejecuta automáticamente al arrancar (`start:prod`), así
+que no necesitas la Shell. Cambia la contraseña y el secreto JWT antes de
+desplegar en producción.
 
 ## Scripts
 
@@ -54,13 +59,13 @@ Cambia la contraseña y el secreto JWT antes de desplegar en producción.
 | `npm run dev`         | Servidor en modo desarrollo con recarga (tsx).    |
 | `npm run build`       | Compila TypeScript a `dist/`.                     |
 | `npm start`           | Ejecuta el build compilado.                       |
-| `npm run start:prod`  | Aplica migraciones y arranca (Render/producción). |
+| `npm run start:prod`  | Migra, ejecuta el seed y arranca (Render).        |
 | `npm run check`       | Verificación de tipos sin emitir archivos.        |
 | `npm run db:migrate`  | Crea/aplica migraciones en desarrollo.            |
 | `npm run db:deploy`   | Aplica migraciones existentes (producción).       |
 | `npm run db:setup`    | Migra y ejecuta el seed en un solo paso.          |
 | `npm run db:push`     | Sincroniza el esquema sin crear migración.        |
-| `npm run db:seed`     | Crea/actualiza la cuenta administrativa inicial.  |
+| `npm run db:seed`     | Crea la cuenta admin (no la modifica si existe).  |
 | `npm run db:studio`   | Abre Prisma Studio.                               |
 | `npm run db:reset`    | Reinicia la base y vuelve a ejecutar el seed.     |
 
@@ -248,12 +253,15 @@ cambios en `prisma/schema.prisma` y ejecuta el seed.
    - **Start Command**: `npm run start:prod`
    - **Health Check Path**: `/api/health`
 3. Configura las variables de entorno en el panel de Render (ver tabla abajo).
-4. Ejecuta el seed **una sola vez** desde la **Shell** de Render:
-   ```bash
-   npm run db:seed
-   ```
-   `start:prod` aplica migraciones en cada arranque; el seed no se ejecuta solo
-   para no sobrescribir la contraseña del administrador en cada despliegue.
+4. El seed se ejecuta automáticamente en cada arranque (`start:prod`): crea la
+   cuenta admin si no existe y no la modifica si ya existe. No necesitas la
+   Shell de Render. Para forzar el cambio de contraseña, define
+   `SEED_ADMIN_FORCE_UPDATE=true` y vuelve a desplegar.
+
+> En el plan gratuito el servicio se suspende por inactividad. La primera
+> petición puede tardar ~50 s o fallar con CORS/404 mientras despierta. Usa un
+> ping externo (UptimeRobot, cron-job.org) cada 10 minutos o una instancia paga
+> para evitarlo.
 
 > Las herramientas de build y seed (`typescript`, `@types/node`, `tsx`) están
 > en `dependencies` para que Render las instale aunque `NODE_ENV=production`
@@ -278,6 +286,7 @@ cambios en `prisma/schema.prisma` y ejecuta el seed.
 | `SEED_ADMIN_NAME`     | Nombre del administrador inicial                                      |
 | `SEED_ADMIN_LASTNAME` | Apellido del administrador inicial                                    |
 | `SEED_ADMIN_CI`       | Cédula del administrador inicial                                      |
+| `SEED_ADMIN_FORCE_UPDATE` | `true` solo para forzar la actualización del admin existente      |
 
 Si backend y frontend comparten dominio puedes usar `COOKIE_SAME_SITE="lax"`.
 Con dominios distintos (lo habitual en Render) usa `none` y
